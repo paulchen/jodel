@@ -1,0 +1,11 @@
+[general]
+db_host = localhost
+db_port = 5432
+db_name = jodel
+db_user = jodel
+db_pass = password
+
+[email]
+report_email = paulchen@rueckgr.at
+email_from = Jodel Cronjob <jodel@rueckgr.at>
+
