@@ -219,7 +219,7 @@ function get_messages($channel = '', $text = '', $user = '', $date = '', $offset
 		$new_messages = $count_data[0]['anzahl'] - $offset;
 	}
 
-	$query = "SELECT m.id, m.created_at, m.replier, m.message
+	$query = "SELECT m.id, m.created_at, m.replier, m.message, m.image_url
 			FROM message m
 			WHERE $filter
 			ORDER BY m.id DESC

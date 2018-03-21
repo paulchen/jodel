@@ -223,7 +223,17 @@ endif; /* if(!$ajax) */ ?>
 							<?php echo $message['replier'] ?>
 						</td>
 						<td class="message">
-							<?php echo $message['message'] ?>
+							<?php if ($message['image_url']): ?>
+								<a href="<?php echo htmlentities($message['image_url'], ENT_QUOTES, 'UTF-8') ?>">
+									<?php if(strlen(trim($message['message'])) > 0): ?>
+										<?php echo $message['message'] ?>
+									<?php else: ?>
+										<?php echo htmlentities($message['image_url'], ENT_QUOTES, 'UTF-8') ?>
+									<?php endif; ?>
+								</a>
+							<?php else: ?>
+								<?php echo $message['message'] ?>
+							<?php endif; ?>
 						</td>
 					</tr>
 				<?php endforeach; ?>
