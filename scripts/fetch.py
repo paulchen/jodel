@@ -1,6 +1,6 @@
 #!/usr/bin/python3
 
-import jodel_api, psycopg2, psycopg2.extras, dateutil.parser, time, os, configparser, sys, fcntl
+import jodel_api, psycopg2, psycopg2.extras, dateutil.parser, time, os, configparser, sys, fcntl, logging
 from random import randint
 from datetime import datetime
 
@@ -13,13 +13,12 @@ def run_once():
     try:
         fcntl.flock(fh, fcntl.LOCK_EX | fcntl.LOCK_NB)
     except:
-        # TODO logger.debug('Already running, terminating now')
+        logger.debug('Already running, terminating now')
         os._exit(0)
 
 
 def process_post(post):
-    # TODO improve logging
-    print(post['created_at'])
+    logger.debug('Processing post %s (created at %s)' % (post['post_id'], post['created_at']))
 
     post_id = post['post_id']
     cur = conn.cursor()
@@ -27,6 +26,8 @@ def process_post(post):
     row = cur.fetchone()
     # TODO update already known posts
     if row is None:
+        logger.debug('Inserting new post')
+
         timestamp = dateutil.parser.parse(post['created_at'])
         from_home = ('from_home' in post)
         image_url = (post['image_url'] if ('image_url' in post) else None)
@@ -65,19 +66,25 @@ def init():
 
     tokens_changed = False
     if access_token is None and expiration_date is None and refresh_token is None and device_uid is None and distinct_id is None:
+        logger.debug('Creating new jodel account: lat=%s, lng=%s, city=%s' % (lat, lng, city))
+
         j = jodel_api.JodelAccount(lat=lat, lng=lng, city=city)
         tokens_changed = True
       
     else:
-
         j = jodel_api.JodelAccount(lat=lat, lng=lng, city=city, access_token=access_token, expiration_date=expiration_date, refresh_token=refresh_token, device_uid=device_uid, distinct_id=distinct_id, is_legacy=False, update_location=False)
 
         if datetime.fromtimestamp(int(expiration_date)) < datetime.now():
+            logger.debug('Expiration date %s has passed, refreshing access token' % (expiration_date, ))
+
             result = j.refresh_access_token()
             if result[0] != '200':
+                logger.error('Unable to refresh access token, refresh all tokens')
+
                 try:
                     result = j.refresh_all_tokens()
-                except:
+                except Exception:
+                    logger.exception('Unable to refresh all tokens')
                     return None
             tokens_changed = True
 
@@ -92,9 +99,19 @@ def init():
 
 
 config_file = os.path.dirname(os.path.realpath(__file__)) + '/../config.ini'
+logfile = os.path.dirname(os.path.realpath(__file__)) + '/../log/update.log'
 
 settings = configparser.ConfigParser()
 settings.read(config_file)
+
+logger = logging.getLogger()
+handler = logging.FileHandler(logfile)
+handler.setFormatter(logging.Formatter('%(asctime)s %(name)-12s %(levelname)-8s %(message)s'))
+logger.addHandler(handler)
+logger.setLevel(logging.DEBUG)
+
+
+logger.debug('Script invoked')
 
 run_once()
 
@@ -108,12 +125,15 @@ except:
 
 j = init()
 if j is None:
+    logger.error('Could not log in, terminating now')
+
     conn.rollback()
     conn.close()
     sys.exit(1)
 
 jodel_id = settings['general']['jodel_id']
 
+success = True
 skip = get_config('next_post_id')
 while True:
     if skip is None:
@@ -122,7 +142,8 @@ while True:
         data = j.get_post_details_v3(jodel_id, skip=skip)
 
     if data[0] != 200:
-	# TODO error handling
+        logger.error('Unable to fetch data, error code %s, terminating after commit' % (data[0], ))
+        success = False
         break
 
     process_post(data[1]['details'])
@@ -139,14 +160,17 @@ while True:
     conn.commit()
 
     seconds = randint(3, 8)
+    logger.debug('Sleeping %s seconds' % (seconds, ))
     time.sleep(seconds)
 
 conn.commit()
 conn.close()
 
-# TODO error handling
+if success:
+    touch_file = os.path.dirname(os.path.realpath(__file__)) + '/../tmp/last_update'
+    with open(touch_file, 'a'):
+        os.utime(touch_file)
 
-touch_file = os.path.dirname(os.path.realpath(__file__)) + '/../tmp/last_update'
-with open(touch_file, 'a'):
-    os.utime(touch_file)
+
+logger.debug('Script completed')
 
