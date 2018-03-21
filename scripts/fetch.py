@@ -144,5 +144,9 @@ while True:
 conn.commit()
 conn.close()
 
-# TODO error handling, touch status file on success (for Icinga)
+# TODO error handling
+
+touch_file = os.path.dirname(os.path.realpath(__file__)) + '/../tmp/last_update'
+with open(touch_file, 'a'):
+    os.utime(touch_file)
 
