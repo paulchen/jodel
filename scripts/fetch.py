@@ -1,7 +1,8 @@
 #!/usr/bin/python3
 
-import jodel_api, psycopg2, psycopg2.extras, dateutil.parser, time, os, configparser
+import jodel_api, psycopg2, psycopg2.extras, dateutil.parser, time, os, configparser, sys
 from random import randint
+from datetime import datetime
 
 def process_post(post):
     # TODO improve logging
@@ -41,6 +42,41 @@ def set_config(key, value):
     cur.close()
 
 
+def init():
+    lat, lng, city = settings['location']['latitude'], settings['location']['longitude'], settings['location']['name']
+    access_token = get_config('access_token')
+    expiration_date = get_config('expiration_date')
+    refresh_token = get_config('refresh_token')
+    device_uid = get_config('device_uid')
+    distinct_id = get_config('distinct_id')
+
+    tokens_changed = False
+    if access_token is None and expiration_date is None and refresh_token is None and device_uid is None and distinct_id is None:
+        j = jodel_api.JodelAccount(lat=lat, lng=lng, city=city)
+        tokens_changed = True
+      
+    else:
+
+        j = jodel_api.JodelAccount(lat=lat, lng=lng, city=city, access_token=access_token, expiration_date=expiration_date, refresh_token=refresh_token, device_uid=device_uid, distinct_id=distinct_id, is_legacy=False, update_location=False)
+
+        if datetime.fromtimestamp(int(expiration_date)) < datetime.now():
+            result = j.refresh_access_token()
+            if result[0] != '200':
+                try:
+                    result = j.refresh_all_tokens()
+                except:
+                    return None
+            tokens_changed = True
+
+    if tokens_changed:
+        account_data = j.get_account_data()
+        for token in ('access_token', 'expiration_date', 'refresh_token', 'device_uid', 'distinct_id'):
+            set_config(token, account_data[token])
+
+    return j
+
+
+
 
 config_file = os.path.dirname(os.path.realpath(__file__)) + '/../config.ini'
 
@@ -49,7 +85,6 @@ settings.read(config_file)
 
 # TODO run only once
 
-# TODO don't hardcode anything
 connect_string = "dbname='%s' user='%s' host='%s' password='%s' port='%s'" % (settings['general']['db_name'], settings['general']['db_user'], settings['general']['db_host'], settings['general']['db_pass'], settings['general']['db_port'])
 try:
     conn = psycopg2.connect(connect_string)
@@ -58,24 +93,16 @@ except:
     sys.exit(1)
 
 
-# TODO don't hardcode anything
-lat, lng, city = settings['location']['latitude'], settings['location']['longitude'], settings['location']['name']
-access_token = get_config('access_token')
-expiration_date = get_config('expiration_date')
-refresh_token = get_config('refresh_token')
-device_uid = get_config('device_uid')
-distinct_id = get_config('distinct_id')
-
-j = jodel_api.JodelAccount(lat=lat, lng=lng, city=city, access_token=access_token, expiration_date=expiration_date, refresh_token=refresh_token, device_uid=device_uid, distinct_id=distinct_id, is_legacy=False, update_location=False)
-
-# TODO check expiration_date
+j = init()
+if j is None:
+    conn.rollback()
+    conn.close()
+    sys.exit(1)
 
 jodel_id = settings['general']['jodel_id']
 
-# TODO init skip
 skip = get_config('next_post_id')
 while True:
-    # TODO don't hardcode post id
     if skip is None:
         data = j.get_post_details_v3(jodel_id)
     else:
