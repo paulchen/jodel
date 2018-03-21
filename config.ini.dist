@@ -4,8 +4,14 @@ db_port = 5432
 db_name = jodel
 db_user = jodel
 db_pass = password
+jodel_id = 
 
 [email]
 report_email = paulchen@rueckgr.at
 email_from = Jodel Cronjob <jodel@rueckgr.at>
+
+[location]
+latitude = 
+longitude = 
+name = 
 

@@ -59,7 +59,7 @@ except:
 
 
 # TODO don't hardcode anything
-lat, lng, city = 48.208333, 16.373056, 'Vienna'
+lat, lng, city = settings['location']['latitude'], settings['location']['longitude'], settings['location']['name']
 access_token = get_config('access_token')
 expiration_date = get_config('expiration_date')
 refresh_token = get_config('refresh_token')
@@ -70,14 +70,16 @@ j = jodel_api.JodelAccount(lat=lat, lng=lng, city=city, access_token=access_toke
 
 # TODO check expiration_date
 
+jodel_id = settings['general']['jodel_id']
+
 # TODO init skip
 skip = get_config('next_post_id')
 while True:
     # TODO don't hardcode post id
     if skip is None:
-        data = j.get_post_details_v3('59f73d3d8165f00010071314')
+        data = j.get_post_details_v3(jodel_id)
     else:
-        data = j.get_post_details_v3('59f73d3d8165f00010071314', skip=skip)
+        data = j.get_post_details_v3(jodel_id, skip=skip)
 
     if data[0] != 200:
 	# TODO error handling
