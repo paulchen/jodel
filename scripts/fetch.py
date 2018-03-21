@@ -24,16 +24,21 @@ def process_post(post):
     cur = conn.cursor()
     cur.execute("""SELECT post_id FROM message WHERE post_id = %s""", (post_id, ))
     row = cur.fetchone()
-    # TODO update already known posts
+
+    timestamp = dateutil.parser.parse(post['created_at'])
+    from_home = ('from_home' in post)
+    image_url = (post['image_url'] if ('image_url' in post) else None)
+    thumbnail_url = (post['thumbnail_url'] if ('thumbnail_url' in post) else None)
+
     if row is None:
         logger.debug('Inserting new post')
 
-        timestamp = dateutil.parser.parse(post['created_at'])
-        from_home = ('from_home' in post)
-        image_url = (post['image_url'] if ('image_url' in post) else None)
-        thumbnail_url = (post['thumbnail_url'] if ('thumbnail_url' in post) else None)
-
         cur.execute("""INSERT INTO message (message, created_at, replier, post_id, vote_count, got_thanks, user_handle, color, post_own, distance, location_name, from_home, image_url, thumbnail_url) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)""", (post['message'], timestamp, post['replier'], post['post_id'], post['vote_count'], post['got_thanks'], post['user_handle'], post['color'], post['post_own'], post['distance'], post['location']['name'], from_home, image_url, thumbnail_url))
+
+    else:
+        logger.debug('Update existing post')
+
+        cur.execute("""UPDATE message SET message = %s, created_at = %s, replier = %s, vote_count = %s, got_thanks = %s, user_handle = %s, color = %s, post_own = %s, distance = %s, location_name = %s, from_home = %s, image_url = %s, thumbnail_url = %s WHERE post_id = %s""", (post['message'], timestamp, post['replier'], post['vote_count'], post['got_thanks'], post['user_handle'], post['color'], post['post_own'], post['distance'], post['location']['name'], from_home, image_url, thumbnail_url, post['post_id']))
     
     cur.close()
 
