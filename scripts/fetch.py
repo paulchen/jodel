@@ -1,8 +1,21 @@
 #!/usr/bin/python3
 
-import jodel_api, psycopg2, psycopg2.extras, dateutil.parser, time, os, configparser, sys
+import jodel_api, psycopg2, psycopg2.extras, dateutil.parser, time, os, configparser, sys, fcntl
 from random import randint
 from datetime import datetime
+
+
+fh = 0
+
+def run_once():
+    global fh
+    fh = open(os.path.realpath(__file__), 'r')
+    try:
+        fcntl.flock(fh, fcntl.LOCK_EX | fcntl.LOCK_NB)
+    except:
+        # TODO logger.debug('Already running, terminating now')
+        os._exit(0)
+
 
 def process_post(post):
     # TODO improve logging
@@ -83,7 +96,7 @@ config_file = os.path.dirname(os.path.realpath(__file__)) + '/../config.ini'
 settings = configparser.ConfigParser()
 settings.read(config_file)
 
-# TODO run only once
+run_once()
 
 connect_string = "dbname='%s' user='%s' host='%s' password='%s' port='%s'" % (settings['general']['db_name'], settings['general']['db_user'], settings['general']['db_host'], settings['general']['db_pass'], settings['general']['db_port'])
 try:
