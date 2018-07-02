@@ -146,6 +146,8 @@ for jodel in jodels:
     jodel_id = jodel['jodel_id']
     jodel_fk = jodel['id']
 
+    logger.info('Processing jodel %s (database id %s)' % (jodel_id, jodel_fk))
+
     skip = jodel['next_post_id']
     while True:
         if skip is None:
