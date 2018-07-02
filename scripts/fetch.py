@@ -167,7 +167,7 @@ for jodel in jodels:
         skip = data[1]['next']
         if skip is not None:
             cur = conn.cursor()
-            cur.execute("""UPDATE jodel SET next_post_id = %s""", (skip, ))
+            cur.execute("""UPDATE jodel SET next_post_id = %s WHERE id = %s""", (skip, jodel_fk))
             cur.close()
 
         if data[1]['remaining'] == 0:
