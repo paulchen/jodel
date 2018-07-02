@@ -47,6 +47,40 @@ CREATE TABLE config (
 ALTER TABLE config OWNER TO jodel;
 
 --
+-- Name: jodel; Type: TABLE; Schema: public; Owner: jodel
+--
+
+CREATE TABLE jodel (
+    id integer NOT NULL,
+    jodel_id character varying(24),
+    next_post_id character varying(14)
+);
+
+
+ALTER TABLE jodel OWNER TO jodel;
+
+--
+-- Name: jodel_id_seq; Type: SEQUENCE; Schema: public; Owner: jodel
+--
+
+CREATE SEQUENCE jodel_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+ALTER TABLE jodel_id_seq OWNER TO jodel;
+
+--
+-- Name: jodel_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: jodel
+--
+
+ALTER SEQUENCE jodel_id_seq OWNED BY jodel.id;
+
+
+--
 -- Name: message; Type: TABLE; Schema: public; Owner: jodel
 --
 
@@ -65,7 +99,8 @@ CREATE TABLE message (
     location_name character varying(100) NOT NULL,
     from_home boolean NOT NULL,
     image_url character varying(1000),
-    thumbnail_url character varying(1000)
+    thumbnail_url character varying(1000),
+    jodel_id integer NOT NULL
 );
 
 
@@ -108,6 +143,14 @@ ALTER TABLE ONLY config
 
 
 --
+-- Name: jodel jodel_pkey; Type: CONSTRAINT; Schema: public; Owner: jodel
+--
+
+ALTER TABLE ONLY jodel
+    ADD CONSTRAINT jodel_pkey PRIMARY KEY (id);
+
+
+--
 -- Name: message message_pkey; Type: CONSTRAINT; Schema: public; Owner: jodel
 --
 
@@ -121,6 +164,14 @@ ALTER TABLE ONLY message
 
 ALTER TABLE ONLY message
     ADD CONSTRAINT message_post_id_key UNIQUE (post_id);
+
+
+--
+-- Name: message message_jodel_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: jodel
+--
+
+ALTER TABLE ONLY message
+    ADD CONSTRAINT message_jodel_id_fkey FOREIGN KEY (jodel_id) REFERENCES jodel(id);
 
 
 --
