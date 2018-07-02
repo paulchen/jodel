@@ -179,6 +179,10 @@ for jodel in jodels:
         logger.debug('Sleeping %s seconds' % (seconds, ))
         time.sleep(seconds)
 
+    seconds = randint(3, 8)
+    logger.debug('Sleeping %s seconds' % (seconds, ))
+    time.sleep(seconds)
+
 conn.commit()
 conn.close()
 
