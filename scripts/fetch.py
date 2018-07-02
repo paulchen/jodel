@@ -17,7 +17,7 @@ def run_once():
         os._exit(0)
 
 
-def process_post(post):
+def process_post(post, jodel_fk):
     logger.debug('Processing post %s (created at %s)' % (post['post_id'], post['created_at']))
 
     post_id = post['post_id']
@@ -33,7 +33,7 @@ def process_post(post):
     if row is None:
         logger.debug('Inserting new post')
 
-        cur.execute("""INSERT INTO message (message, created_at, replier, post_id, vote_count, got_thanks, user_handle, color, post_own, distance, location_name, from_home, image_url, thumbnail_url) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)""", (post['message'], timestamp, post['replier'], post['post_id'], post['vote_count'], post['got_thanks'], post['user_handle'], post['color'], post['post_own'], post['distance'], post['location']['name'], from_home, image_url, thumbnail_url))
+        cur.execute("""INSERT INTO message (message, created_at, replier, post_id, vote_count, got_thanks, user_handle, color, post_own, distance, location_name, from_home, image_url, thumbnail_url, jodel_id) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)""", (post['message'], timestamp, post['replier'], post['post_id'], post['vote_count'], post['got_thanks'], post['user_handle'], post['color'], post['post_own'], post['distance'], post['location']['name'], from_home, image_url, thumbnail_url, jodel_fk))
 
     else:
         logger.debug('Update existing post')
@@ -136,37 +136,46 @@ if j is None:
     conn.close()
     sys.exit(1)
 
-jodel_id = settings['general']['jodel_id']
+cur = conn.cursor(cursor_factory = psycopg2.extras.DictCursor)
+cur.execute("""SELECT id, jodel_id, next_post_id FROM jodel ORDER BY id ASC""")
+jodels = cur.fetchall()
+cur.close()
 
 success = True
-skip = get_config('next_post_id')
-while True:
-    if skip is None:
-        data = j.get_post_details_v3(jodel_id)
-    else:
-        data = j.get_post_details_v3(jodel_id, skip=skip)
+for jodel in jodels:
+    jodel_id = jodel['jodel_id']
+    jodel_fk = jodel['id']
 
-    if data[0] != 200:
-        logger.error('Unable to fetch data, error code %s, terminating after commit' % (data[0], ))
-        success = False
-        break
+    skip = jodel['next_post_id']
+    while True:
+        if skip is None:
+            data = j.get_post_details_v3(jodel_id)
+        else:
+            data = j.get_post_details_v3(jodel_id, skip=skip)
 
-    process_post(data[1]['details'])
-    for reply in data[1]['replies']:
-        process_post(reply)
-   
-    skip = data[1]['next']
-    if skip is not None:
-        set_config('next_post_id', skip)
+        if data[0] != 200:
+            logger.error('Unable to fetch data, error code %s, terminating after commit' % (data[0], ))
+            success = False
+            break
 
-    if data[1]['remaining'] == 0:
-        break
+        process_post(data[1]['details'], jodel_fk)
+        for reply in data[1]['replies']:
+            process_post(reply, jodel_fk)
+       
+        skip = data[1]['next']
+        if skip is not None:
+            cur = conn.cursor()
+            cur.execute("""UPDATE jodel SET next_post_id = %s""", (skip, ))
+            cur.close()
 
-    conn.commit()
+        if data[1]['remaining'] == 0:
+            break
 
-    seconds = randint(3, 8)
-    logger.debug('Sleeping %s seconds' % (seconds, ))
-    time.sleep(seconds)
+        conn.commit()
+
+        seconds = randint(3, 8)
+        logger.debug('Sleeping %s seconds' % (seconds, ))
+        time.sleep(seconds)
 
 conn.commit()
 conn.close()
