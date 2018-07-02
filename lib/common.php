@@ -189,9 +189,9 @@ function set_setting($key, $value) {
 	db_query($query, array($key, $value));
 }
 
-function get_messages($channel = '', $text = '', $user = '', $date = '', $offset = 0, $limit = 100, $last_shown_id = -1) {
-	$filters = array('1 = 1'); // deleted = false', 'c.name = ?');
-	$params = array();
+function get_messages($jodel = 1, $text = '', $user = '', $date = '', $offset = 0, $limit = 100, $last_shown_id = -1) {
+	$filters = array('jodel_id = ?'); // deleted = false', 'c.name = ?');
+	$params = array($jodel);
 	/*
 	if($text != '') {
 		$filters[] = 'm.text ILIKE ?';
@@ -284,8 +284,8 @@ function get_messages($channel = '', $text = '', $user = '', $date = '', $offset
 		$last_loaded_id = $ids[0];
 	}
 
-	$query = 'SELECT COUNT(*) visible_shouts FROM message';
-	$result = db_query($query);
+	$query = "SELECT COUNT(*) visible_shouts FROM message WHERE $filter";
+	$result = db_query($query, $params);
 
 	$total_shouts = $result[0]['visible_shouts'];
 

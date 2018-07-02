@@ -54,6 +54,7 @@ $refresh = (!isset($_GET['refresh']) || $_GET['refresh'] == 'on');
 $text = isset($_GET['text']) ? trim($_GET['text']) : '';
 $user = isset($_GET['user']) ? trim($_GET['user']) : '';
 $date = isset($_GET['date']) ? trim($_GET['date']) : '';
+$jodel = isset($_GET['jodel']) ? trim($_GET['jodel']) : 1;
 
 $last_shown_id = -1;
 if(isset($_GET['last_shown_id']) && preg_match('/^[0-9]+$/', $_GET['last_shown_id'])) {
@@ -68,7 +69,7 @@ if(!$channel_id) {
 }
  */
 
-$message_data = get_messages('', $text, $user, $date, $offset, $limit, $last_shown_id);
+$message_data = get_messages($jodel, $text, $user, $date, $offset, $limit, $last_shown_id);
 $messages = $message_data['messages'];
 $user_details = $message_data['users'];
 $filtered_shouts = $message_data['filtered_shouts'];

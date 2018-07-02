@@ -192,7 +192,7 @@ function tab_disabled() {
 <body>
 <h1><a href="index.php">#zeitistkarma</a></h1>
 	<div>
-		<a href="details.php" style="white-space: nowrap;">Details</a>
+		<!-- <a href="details.php" style="white-space: nowrap;">Details</a> -->
 		<fieldset><legend>Filters</legend>
 		<form method="get" action="<?php echo htmlentities($_SERVER['REQUEST_URI'], ENT_QUOTES, 'UTF-8'); ?>">
 		<table>
