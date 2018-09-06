@@ -117,6 +117,12 @@ logger.addHandler(handler)
 logger.setLevel(logging.DEBUG)
 
 
+def fetch_data(jodel_id, skip):
+    if skip is None:
+        return j.get_post_details_v3(jodel_id)
+    else:
+        return j.get_post_details_v3(jodel_id, skip=skip)
+
 logger.debug('Script invoked')
 
 run_once()
@@ -142,6 +148,7 @@ cur.execute("""SELECT id, jodel_id, next_post_id FROM jodel WHERE poll = 1 ORDER
 jodels = cur.fetchall()
 cur.close()
 
+failed_jodels = 0
 success = True
 for jodel in jodels:
     jodel_id = jodel['jodel_id']
@@ -151,12 +158,15 @@ for jodel in jodels:
 
     skip = jodel['next_post_id']
     while True:
-        if skip is None:
-            data = j.get_post_details_v3(jodel_id)
-        else:
-            data = j.get_post_details_v3(jodel_id, skip=skip)
+        data = fetch_data(jodel_id, skip)
+
+        if data[0] != 200 and failed_jodels < 3:
+            failed_jodels += 1
+            logger.error('Unable to fetch data, error code %s, trying again' % (data[0], ))
+            data = fetch_data(jodel_id, skip)
 
         if data[0] != 200:
+            failed_jodels += 1
             logger.error('Unable to fetch data, error code %s, terminating after commit' % (data[0], ))
             success = False
             break
