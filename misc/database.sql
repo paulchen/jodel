@@ -53,7 +53,8 @@ ALTER TABLE config OWNER TO jodel;
 CREATE TABLE jodel (
     id integer NOT NULL,
     jodel_id character varying(24),
-    next_post_id character varying(14)
+    next_post_id character varying(14),
+    poll integer NOT NULL DEFAULT 1
 );
 
 
@@ -88,7 +89,7 @@ CREATE TABLE message (
     id integer NOT NULL,
     message character varying(1000) NOT NULL,
     created_at timestamp without time zone NOT NULL,
-    replier integer NOT NULL,
+    replier integer,
     post_id character varying(30) NOT NULL,
     vote_count integer NOT NULL,
     got_thanks boolean NOT NULL,
