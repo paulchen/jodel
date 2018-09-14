@@ -189,23 +189,30 @@ function set_setting($key, $value) {
 	db_query($query, array($key, $value));
 }
 
+function get_jodel($jodel_id) {
+	$query = 'SELECT id, description FROM jodel WHERE id = ?';
+	$data = db_query($query, array($jodel_id));
+	if(count($data) == 0) {
+		return null;
+	}
+	return $data[0];
+}
+
 function get_messages($jodel = 1, $text = '', $user = '', $date = '', $offset = 0, $limit = 100, $last_shown_id = -1) {
 	$filters = array('jodel_id = ?'); // deleted = false', 'c.name = ?');
 	$params = array($jodel);
-	/*
 	if($text != '') {
-		$filters[] = 'm.text ILIKE ?';
+		$filters[] = 'm.message ILIKE ?';
 		$params[] = "%$text%";
 	}
 	if($user != '') {
-		$filters[] = 'LOWER(u.username) = LOWER(?)';
+		$filters[] = 'm.replier = ?';
 		$params[] = $user;
 	}
 	if($date != '') {
-		$filters[] = "TO_CHAR(m.timestamp, 'YYYY-MM-DD') = ?";
+		$filters[] = "TO_CHAR(m.created_at, 'YYYY-MM-DD') = ?";
 		$params[] = $date;
 	}
-	 */
 	$filter = implode(' AND ', $filters);
 
 	$new_messages = 0;
@@ -284,7 +291,7 @@ function get_messages($jodel = 1, $text = '', $user = '', $date = '', $offset = 
 		$last_loaded_id = $ids[0];
 	}
 
-	$query = "SELECT COUNT(*) visible_shouts FROM message WHERE $filter";
+	$query = "SELECT COUNT(*) visible_shouts FROM message m WHERE $filter";
 	$result = db_query($query, $params);
 
 	$total_shouts = $result[0]['visible_shouts'];

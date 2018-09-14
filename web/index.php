@@ -61,13 +61,11 @@ if(isset($_GET['last_shown_id']) && preg_match('/^[0-9]+$/', $_GET['last_shown_i
 	$last_shown_id = $_GET['last_shown_id'];
 }
 
-/*
-$channel = isset($_GET['channel']) ? trim($_GET['channel']) : $settings['web']['default_channel'];
-$channel_id = get_channel_id($channel);
-if(!$channel_id) {
-	die();
+$jodel_data = get_jodel($jodel);
+if($jodel_data == null) {
+	// TODO 404
 }
- */
+$title = $jodel_data['description'];
 
 $message_data = get_messages($jodel, $text, $user, $date, $offset, $limit, $last_shown_id);
 $messages = $message_data['messages'];
@@ -78,7 +76,7 @@ $page_count = $message_data['page_count'];
 $last_loaded_id = $message_data['last_loaded_id'];
 $new_messages = $message_data['new_messages'];
 
-$link_parts = "?limit=$limit";
+$link_parts = "?limit=$limit&amp;jodel=$jodel";
 if($text != '') {
 	$link_parts .= '&amp;text=' . urlencode($text);
 }

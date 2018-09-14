@@ -7,7 +7,7 @@ if(!$ajax):
 <html xmlns="http://www.w3.org/1999/xhtml">
 <head>
 	<meta http-equiv="content-type" content="text/html; charset=UTF-8" />
-	<title>#zeitistkarma</title>
+	<title><?php echo htmlentities($title, ENT_QUOTES, 'UTF-8') ?></title>
 	<meta name="viewport" content="width=device-width, initial-scale=1" />
 	<style type="text/css">
 	@font-face { font-family: 'Noto Color Emoji'; src: url('css/NotoColorEmoji.ttf'); }
@@ -104,10 +104,10 @@ function update_refresh() {
 
 function reset_form() {
 	if($('#refresh_checkbox').is(':checked')) {
-		document.location.href = '?refresh=on';
+		document.location.href = '?refresh=on&jodel=<?php echo $jodel ?>';
 	}
 	else {
-		document.location.href = '?';
+		document.location.href = '?jodel=<?php echo $jodel ?>';
 	}
 }
 
@@ -190,7 +190,7 @@ function tab_disabled() {
 	</script>
 </head>
 <body>
-<h1><a href="index.php">#zeitistkarma</a></h1>
+<h1><a href="index.php?jodel=<?php echo $jodel ?>"><?php echo htmlentities($title, ENT_QUOTES, 'UTF-8') ?></a></h1>
 	<div>
 		<!-- <a href="details.php" style="white-space: nowrap;">Details</a> -->
 		<fieldset><legend>Filters</legend>
@@ -204,6 +204,7 @@ function tab_disabled() {
 		<tr><td></td><td><input type="submit" value="Filter" /><input type="button" value="Reset" onclick="reset_form();" /></td></tr>
 		<tr><td></td><td><input id="refresh_checkbox" type="checkbox" name="refresh" <?php if($refresh) echo 'checked="checked"'; ?> />&nbsp;<label for="refresh_checkbox">Auto-refresh every <?php echo $refresh_time ?> seconds.</label></td></tr>
 		</table>
+		<input type="hidden" name="jodel" value="<?php echo $jodel ?>" />
 		</form>
 		</fieldset>
 		<div style="padding: 10px 5px 10px 5px;">
