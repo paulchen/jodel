@@ -292,6 +292,9 @@ function get_messages($jodel = 1, $text = '', $user = '', $date = '', $offset = 
 	}
 
 	$query = "SELECT COUNT(*) visible_shouts FROM message m WHERE $filter";
+	// limit and offset
+	array_pop($params);
+	array_pop($params);
 	$result = db_query($query, $params);
 
 	$total_shouts = $result[0]['visible_shouts'];
@@ -301,9 +304,6 @@ function get_messages($jodel = 1, $text = '', $user = '', $date = '', $offset = 
 				FROM message m
 				WHERE $filter";
 
-		// limit and offset
-		array_pop($params);
-		array_pop($params);
 		$db_data = db_query($query, $params);
 		$filtered_shouts = $db_data[0]['shouts'];
 	}
