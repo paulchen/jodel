@@ -1,6 +1,7 @@
 #!/usr/bin/python3
 
-import jodel_api, psycopg2, psycopg2.extras, dateutil.parser, time, os, configparser, sys, fcntl, logging
+import jodel_api, psycopg2, psycopg2.extras, dateutil.parser, time, os, configparser, sys, fcntl, logging, re
+from urllib.request import urlopen
 from random import randint
 from datetime import datetime
 
@@ -117,6 +118,34 @@ logger.addHandler(handler)
 logger.setLevel(logging.DEBUG)
 
 
+def download_image(url):
+    directory = get_config('download_dir')
+    filename = re.sub(r"^.*\/", '', url)
+    local_filename = directory + '/' + filename
+
+    logger.debug('Downloading %s to %s...' % (url, local_filename))
+
+    try:
+        response = urlopen('https:' + url, None, 10)
+    except Exception:
+        logger.error('Error downloading %s' % (url, ))
+        return None
+
+
+    data = response.read()
+    with open(local_filename, 'wb') as f:
+        f.write(response.read())
+
+    cur = conn.cursor()
+    cur.execute("""INSERT INTO image (filename) VALUES (%s) RETURNING id""", (filename, ))
+    inserted_id = cur.fetchone()[0]
+    cur.close()
+
+    logger.debug('Inserted Id: %s' % (inserted_id))
+
+    return inserted_id
+
+
 def fetch_data(jodel_id, skip):
     if skip is None:
         return j.get_post_details_v3(jodel_id)
@@ -189,6 +218,43 @@ for jodel in jodels:
         seconds = randint(3, 8)
         logger.debug('Sleeping %s seconds' % (seconds, ))
         time.sleep(seconds)
+
+    conn.commit()
+
+    seconds = randint(3, 8)
+    logger.debug('Sleeping %s seconds' % (seconds, ))
+    time.sleep(seconds)
+
+conn.commit()
+
+logger.debug('Checking for images not yet downloaded')
+
+cur = conn.cursor(cursor_factory = psycopg2.extras.DictCursor)
+cur.execute("""SELECT id, image_url, thumbnail_url, image_id, thumbnail_id FROM message WHERE (image_url IS NOT NULL AND image_id IS NULL) OR (thumbnail_url IS NOT NULL and thumbnail_id IS NULL)""")
+row = cur.fetchone()
+while row:
+    logger.debug('Processing message %s' % (row['id']))
+
+    if row['image_url'] and not row['image_id']:
+        logger.debug('image_id is null')
+
+        image_id = download_image(row['image_url'])
+        if image_id:
+            cur2 = conn.cursor()
+            cur2.execute("""UPDATE message SET image_id = %s WHERE id = %s""", (image_id, row['id']))
+            cur2.close()
+
+    if row['thumbnail_url'] and not row['thumbnail_id']:
+        logger.debug('thubmnail_id is null')
+
+        thumbnail_id = download_image(row['thumbnail_url'])
+        if thumbnail_id:
+            cur2 = conn.cursor()
+            cur2.execute("""UPDATE message SET thumbnail_id = %s WHERE id = %s""", (thumbnail_id, row['id']))
+            cur2.close()
+
+
+    row = cur.fetchone()
 
     conn.commit()
 
