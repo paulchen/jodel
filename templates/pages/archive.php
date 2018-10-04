@@ -221,7 +221,7 @@ endif; /* if(!$ajax) */ ?>
 			<table style="border-collapse: collapse; width: 100%;">
 				<?php foreach($messages as $message_id => $message): ?>
 					<tr>
-						<td class="date"><a id="message<?php echo $message_id ?>"></a><a href="?limit=<?php echo $limit ?>&amp;id=<?php echo $message_id ?>"><?php echo $message['created_at'] ?></a></td>
+						<td class="date"><a id="message<?php echo $message_id ?>"></a><a href="?jodel=<?php echo $jodel ?>&amp;limit=<?php echo $limit ?>&amp;id=<?php echo $message_id ?>"><?php echo $message['created_at'] ?></a></td>
 						<td class="user">
 							<?php echo $message['replier'] ?>
 						</td>

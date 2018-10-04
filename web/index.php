@@ -4,7 +4,6 @@ require_once(dirname(__FILE__) . '/../lib/common.php');
 $default_page = 1;
 $default_limit = 100;
 
-/*
 if(isset($_GET['id'])) {
 	$id = $_GET['id'];
 	if(!preg_match('/^[0-9]+$/', $id)) {
@@ -19,21 +18,19 @@ if(isset($_GET['id'])) {
 			$limit = $default_limit;
 		}
 	}
+	$jodel = 1;
+	if(isset($_GET['jodel']) && preg_match('/^[0-9]+$/', $_GET['jodel'])) {
+		$jodel = $_GET['jodel'];
+	}
 
-	$query = 'SELECT c.channel_pk, c.name FROM channel c, message m WHERE c.channel_pk = m.channel_fk AND m.message_pk = ?';
-	$result = db_query($query, array($id));
-	$channel = $result[0]['name'];
-	$channel_id = $result[0]['channel_pk'];
-
-	$query = 'SELECT COUNT(*) messages FROM message WHERE message_pk > ? AND channel_fk = ?';
-	$data = db_query($query, array($id, $channel_id));
+	$query = 'SELECT COUNT(*) messages FROM message WHERE id > ? AND jodel_id = ?';
+	$data = db_query($query, array($id, $jodel));
 
 	$page = floor($data[0]['messages']/$limit)+1;
 
-	header("Location: ?channel=$channel&limit=$limit&page=$page#message${id}");
+	header("Location: ?jodel=$jodel&limit=$limit&page=$page#message${id}");
 	die();
 }
- */
 
 $page = isset($_GET['page']) ? $_GET['page'] : $default_page;
 $limit = isset($_GET['limit']) ? $_GET['limit'] : $default_limit;
