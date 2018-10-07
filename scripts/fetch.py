@@ -132,7 +132,6 @@ def download_image(url):
         return None
 
 
-    data = response.read()
     with open(local_filename, 'wb') as f:
         f.write(response.read())
 
