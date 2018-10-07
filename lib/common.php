@@ -226,7 +226,7 @@ function get_messages($jodel = 1, $text = '', $user = '', $date = '', $offset = 
 		$new_messages = $count_data[0]['anzahl'] - $offset;
 	}
 
-	$query = "SELECT m.id, m.created_at, m.replier, m.message, m.image_url
+	$query = "SELECT m.id, m.created_at, m.replier, m.message, m.image_url, m.image_id
 			FROM message m
 			WHERE $filter
 			ORDER BY m.id DESC
@@ -265,6 +265,9 @@ function get_messages($jodel = 1, $text = '', $user = '', $date = '', $offset = 
 		$message_pk = $row['id'];
 		unset($row['id']);
 
+		if($row['image_id'] != null) {
+			$row['image_url'] = 'image.php?id=' . $row['image_id'];
+		}
 		$ids[] = $message_pk;
 
 		/*
