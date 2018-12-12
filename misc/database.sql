@@ -136,6 +136,14 @@ ALTER TABLE ONLY message ALTER COLUMN id SET DEFAULT nextval('message_id_seq'::r
 
 
 --
+-- Name: jodel jodel_jodel_id_key; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.jodel
+    ADD CONSTRAINT jodel_jodel_id_key UNIQUE (jodel_id);
+
+
+--
 -- Name: config config_pkey; Type: CONSTRAINT; Schema: public; Owner: jodel
 --
 
