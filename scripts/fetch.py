@@ -127,13 +127,13 @@ def download_image(url):
 
     try:
         response = urlopen('https:' + url, None, 10)
+
+        with open(local_filename, 'wb') as f:
+            f.write(response.read())
     except Exception:
         logger.error('Error downloading %s' % (url, ))
         return None
 
-
-    with open(local_filename, 'wb') as f:
-        f.write(response.read())
 
     cur = conn.cursor()
     cur.execute("""INSERT INTO image (filename) VALUES (%s) RETURNING id""", (filename, ))
@@ -172,7 +172,14 @@ if j is None:
     sys.exit(1)
 
 cur = conn.cursor(cursor_factory = psycopg2.extras.DictCursor)
-cur.execute("""SELECT id, jodel_id, next_post_id FROM jodel WHERE poll = 1 ORDER BY id ASC""")
+cur.execute("""SELECT j.id AS id, j.jodel_id AS jodel_id, j.next_post_id AS next_post_id
+        FROM jodel j
+            JOIN message m ON (j.id = m.jodel_id)
+        WHERE j.poll = 1
+        GROUP BY j.id
+        HAVING j.last_updated - MAX(m.created_at) < INTERVAL '24 hours'
+            OR (NOW() - j.last_updated) > INTERVAL '24 hours'
+        ORDER BY j.id ASC""")
 jodels = cur.fetchall()
 cur.close()
 
@@ -217,6 +224,10 @@ for jodel in jodels:
         seconds = randint(3, 8)
         logger.debug('Sleeping %s seconds' % (seconds, ))
         time.sleep(seconds)
+
+    cur = conn.cursor()
+    cur.execute("""UPDATE jodel SET last_updated = NOW() WHERE id = %s""", (jodel_fk, ))
+    cur.close()
 
     conn.commit()
 
