@@ -174,11 +174,12 @@ if j is None:
 cur = conn.cursor(cursor_factory = psycopg2.extras.DictCursor)
 cur.execute("""SELECT j.id AS id, j.jodel_id AS jodel_id, j.next_post_id AS next_post_id
         FROM jodel j
-            JOIN message m ON (j.id = m.jodel_id)
+            LEFT JOIN message m ON (j.id = m.jodel_id)
         WHERE j.poll = 1
         GROUP BY j.id
         HAVING j.last_updated - MAX(m.created_at) < INTERVAL '24 hours'
             OR (NOW() - j.last_updated) > INTERVAL '24 hours'
+            OR j.last_updated IS NULL
         ORDER BY j.id ASC""")
 jodels = cur.fetchall()
 cur.close()
