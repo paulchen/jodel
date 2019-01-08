@@ -193,8 +193,15 @@ for jodel in jodels:
     logger.info('Processing jodel %s (database id %s)' % (jodel_id, jodel_fk))
 
     skip = jodel['next_post_id']
+    jodel_processed = False
+    disable_jodel = False
     while True:
         data = fetch_data(jodel_id, skip)
+
+        if data[0] == 404:
+            logger.error('Jodel does not exist anymore (404)')
+            disable_jodel = True
+            break
 
         if data[0] != 200 and failed_jodels < 3:
             failed_jodels += 1
@@ -218,6 +225,7 @@ for jodel in jodels:
             cur.close()
 
         if data[1]['remaining'] == 0:
+            jodel_processed = True
             break
 
         conn.commit()
@@ -226,9 +234,15 @@ for jodel in jodels:
         logger.debug('Sleeping %s seconds' % (seconds, ))
         time.sleep(seconds)
 
-    cur = conn.cursor()
-    cur.execute("""UPDATE jodel SET last_updated = NOW() WHERE id = %s""", (jodel_fk, ))
-    cur.close()
+    if jodel_processed:
+        cur = conn.cursor()
+        cur.execute("""UPDATE jodel SET last_updated = NOW() WHERE id = %s""", (jodel_fk, ))
+        cur.close()
+
+    if disable_jodel:
+        cur = conn.cursor()
+        cur.execute("""UPDATE jodel SET poll = 0 WHERE id = %s""", (jodel_fk, ))
+        cur.close()
 
     conn.commit()
 
