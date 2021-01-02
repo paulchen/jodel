@@ -31,16 +31,17 @@ def process_post(post, jodel_fk):
     image_url = (post['image_url'] if ('image_url' in post) else None)
     thumbnail_url = (post['thumbnail_url'] if ('thumbnail_url' in post) else None)
     replier = (post['replier'] if ('replier' in post) else None)
+    message = post['message'].replace("\x00", "")
 
     if row is None:
         logger.debug('Inserting new post')
 
-        cur.execute("""INSERT INTO message (message, created_at, replier, post_id, vote_count, got_thanks, user_handle, color, post_own, distance, location_name, from_home, image_url, thumbnail_url, jodel_id) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)""", (post['message'], timestamp, replier, post['post_id'], post['vote_count'], post['got_thanks'], post['user_handle'], post['color'], post['post_own'], post['distance'], post['location']['name'], from_home, image_url, thumbnail_url, jodel_fk))
+        cur.execute("""INSERT INTO message (message, created_at, replier, post_id, vote_count, got_thanks, user_handle, color, post_own, distance, location_name, from_home, image_url, thumbnail_url, jodel_id) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)""", (message, timestamp, replier, post['post_id'], post['vote_count'], post['got_thanks'], post['user_handle'], post['color'], post['post_own'], post['distance'], post['location']['name'], from_home, image_url, thumbnail_url, jodel_fk))
 
     else:
         logger.debug('Update existing post')
 
-        cur.execute("""UPDATE message SET message = %s, created_at = %s, replier = %s, vote_count = %s, got_thanks = %s, user_handle = %s, color = %s, post_own = %s, distance = %s, location_name = %s, from_home = %s, image_url = %s, thumbnail_url = %s WHERE post_id = %s""", (post['message'], timestamp, replier, post['vote_count'], post['got_thanks'], post['user_handle'], post['color'], post['post_own'], post['distance'], post['location']['name'], from_home, image_url, thumbnail_url, post['post_id']))
+        cur.execute("""UPDATE message SET message = %s, created_at = %s, replier = %s, vote_count = %s, got_thanks = %s, user_handle = %s, color = %s, post_own = %s, distance = %s, location_name = %s, from_home = %s, image_url = %s, thumbnail_url = %s WHERE post_id = %s""", (message, timestamp, replier, post['vote_count'], post['got_thanks'], post['user_handle'], post['color'], post['post_own'], post['distance'], post['location']['name'], from_home, image_url, thumbnail_url, post['post_id']))
     
     cur.close()
 
