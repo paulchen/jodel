@@ -65,7 +65,7 @@ def set_config(key, value):
 
 
 def init():
-    lat, lng, city = settings['location']['latitude'], settings['location']['longitude'], settings['location']['name']
+    lat, lng, city = float(settings['location']['latitude']), float(settings['location']['longitude']), settings['location']['name']
     access_token = get_config('access_token')
     expiration_date = get_config('expiration_date')
     refresh_token = get_config('refresh_token')
