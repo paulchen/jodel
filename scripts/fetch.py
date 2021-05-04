@@ -90,7 +90,7 @@ def init():
                 logger.error('Unable to refresh access token, refresh all tokens')
 
                 try:
-                    result = j.refresh_all_tokens()
+                    result = j.refresh_all_tokens(pushToken=None)
                 except Exception:
                     logger.exception('Unable to refresh all tokens')
                     return None
