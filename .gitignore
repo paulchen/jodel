@@ -2,3 +2,4 @@ config.ini
 tmp/last_update
 log/*log*
 images/*.jpeg
+images/*.jpg
