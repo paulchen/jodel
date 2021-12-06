@@ -81,7 +81,6 @@ def init():
       
     else:
         j = jodel_api.JodelAccount(lat=lat, lng=lng, city=city, access_token=access_token, expiration_date=expiration_date, refresh_token=refresh_token, device_uid=device_uid, distinct_id=distinct_id, is_legacy=False, update_location=False)
-
         if datetime.fromtimestamp(int(expiration_date)) < datetime.now():
             logger.debug('Expiration date %s has passed, refreshing access token' % (expiration_date, ))
 
@@ -90,7 +89,7 @@ def init():
                 logger.error('Unable to refresh access token, refresh all tokens')
 
                 try:
-                    result = j.refresh_all_tokens(pushToken=None)
+                    result = j.refresh_all_tokens()
                 except Exception:
                     logger.exception('Unable to refresh all tokens')
                     return None
