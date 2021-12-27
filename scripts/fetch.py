@@ -1,9 +1,32 @@
 #!/usr/bin/python3
 
-import jodel_api, psycopg2, psycopg2.extras, dateutil.parser, time, os, configparser, sys, fcntl, logging, re
+import jodel_api, psycopg2, psycopg2.extras, dateutil.parser, time, os, configparser, sys, fcntl, logging, re, contextlib
 from urllib.request import urlopen
 from random import randint
 from datetime import datetime
+
+
+# taken from https://johnpaton.net/posts/redirect-logging/
+class OutputLogger:
+    def __init__(self, name="root", level="INFO"):
+        self.logger = logging.getLogger(name)
+        self.name = self.logger.name
+        self.level = getattr(logging, level)
+        self._redirector = contextlib.redirect_stdout(self)
+
+    def write(self, msg):
+        if msg and not msg.isspace():
+            self.logger.log(self.level, msg)
+
+    def flush(self): pass
+
+    def __enter__(self):
+        self._redirector.__enter__()
+        return self
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        # let contextlib do any exception handling here
+        self._redirector.__exit__(exc_type, exc_value, traceback)
 
 
 fh = 0
@@ -145,11 +168,140 @@ def download_image(url):
     return inserted_id
 
 
-def fetch_data(jodel_id, skip):
+def fetch_data(j, jodel_id, skip):
     if skip is None:
         return j.get_post_details_v3(jodel_id)
     else:
         return j.get_post_details_v3(jodel_id, skip=skip)
+
+
+def run_import():
+    j = init()
+    if j is None:
+        logger.error('Could not log in, terminating now')
+
+        conn.rollback()
+        conn.close()
+        sys.exit(1)
+
+    cur = conn.cursor(cursor_factory = psycopg2.extras.DictCursor)
+    cur.execute("""SELECT j.id AS id, j.jodel_id AS jodel_id, j.next_post_id AS next_post_id
+            FROM jodel j
+                LEFT JOIN message m ON (j.id = m.jodel_id)
+            WHERE j.poll = 1
+            GROUP BY j.id
+            HAVING j.last_updated - MAX(m.created_at) < INTERVAL '24 hours'
+                OR (NOW() - j.last_updated) > INTERVAL '24 hours'
+                OR j.last_updated IS NULL
+            ORDER BY j.id ASC""")
+    jodels = cur.fetchall()
+    cur.close()
+
+    failed_jodels = 0
+    success = True
+    for jodel in jodels:
+        jodel_id = jodel['jodel_id']
+        jodel_fk = jodel['id']
+
+        logger.info('Processing jodel %s (database id %s)' % (jodel_id, jodel_fk))
+
+        skip = jodel['next_post_id']
+        jodel_processed = False
+        disable_jodel = False
+        while True:
+            data = fetch_data(j, jodel_id, skip)
+
+            if data[0] == 404:
+                logger.error('Jodel does not exist anymore (404)')
+                disable_jodel = True
+                break
+
+            if data[0] != 200 and failed_jodels < 3:
+                failed_jodels += 1
+                logger.error('Unable to fetch data, error code %s, trying again' % (data[0], ))
+                data = fetch_data(jodel_id, skip)
+
+            if data[0] != 200:
+                failed_jodels += 1
+                logger.error('Unable to fetch data, error code %s, terminating after commit' % (data[0], ))
+                success = False
+                break
+
+            process_post(data[1]['details'], jodel_fk)
+            for reply in data[1]['replies']:
+                process_post(reply, jodel_fk)
+           
+            skip = data[1]['next']
+            if skip is not None:
+                cur = conn.cursor()
+                cur.execute("""UPDATE jodel SET next_post_id = %s WHERE id = %s""", (skip, jodel_fk))
+                cur.close()
+
+            if data[1]['remaining'] == 0:
+                jodel_processed = True
+                break
+
+            conn.commit()
+
+            seconds = randint(3, 8)
+            logger.debug('Sleeping %s seconds' % (seconds, ))
+            time.sleep(seconds)
+
+        if jodel_processed:
+            cur = conn.cursor()
+            cur.execute("""UPDATE jodel SET last_updated = NOW() WHERE id = %s""", (jodel_fk, ))
+            cur.close()
+
+        if disable_jodel:
+            cur = conn.cursor()
+            cur.execute("""UPDATE jodel SET poll = 0 WHERE id = %s""", (jodel_fk, ))
+            cur.close()
+
+        conn.commit()
+
+        seconds = randint(3, 8)
+        logger.debug('Sleeping %s seconds' % (seconds, ))
+        time.sleep(seconds)
+
+    conn.commit()
+
+    logger.debug('Checking for images not yet downloaded')
+
+    cur = conn.cursor(cursor_factory = psycopg2.extras.DictCursor)
+    cur.execute("""SELECT id, image_url, thumbnail_url, image_id, thumbnail_id FROM message WHERE (image_url IS NOT NULL AND image_id IS NULL) OR (thumbnail_url IS NOT NULL and thumbnail_id IS NULL)""")
+    row = cur.fetchone()
+    while row:
+        logger.debug('Processing message %s' % (row['id']))
+
+        if row['image_url'] and not row['image_id']:
+            logger.debug('image_id is null')
+
+            image_id = download_image(row['image_url'])
+            if image_id:
+                cur2 = conn.cursor()
+                cur2.execute("""UPDATE message SET image_id = %s WHERE id = %s""", (image_id, row['id']))
+                cur2.close()
+
+        if row['thumbnail_url'] and not row['thumbnail_id']:
+            logger.debug('thubmnail_id is null')
+
+            thumbnail_id = download_image(row['thumbnail_url'])
+            if thumbnail_id:
+                cur2 = conn.cursor()
+                cur2.execute("""UPDATE message SET thumbnail_id = %s WHERE id = %s""", (thumbnail_id, row['id']))
+                cur2.close()
+
+
+        row = cur.fetchone()
+
+        conn.commit()
+
+        seconds = randint(3, 8)
+        logger.debug('Sleeping %s seconds' % (seconds, ))
+        time.sleep(seconds)
+
+    return success
+
 
 logger.debug('Script invoked')
 
@@ -162,130 +314,8 @@ except:
     logger.error('Database error')
     sys.exit(1)
 
-
-j = init()
-if j is None:
-    logger.error('Could not log in, terminating now')
-
-    conn.rollback()
-    conn.close()
-    sys.exit(1)
-
-cur = conn.cursor(cursor_factory = psycopg2.extras.DictCursor)
-cur.execute("""SELECT j.id AS id, j.jodel_id AS jodel_id, j.next_post_id AS next_post_id
-        FROM jodel j
-            LEFT JOIN message m ON (j.id = m.jodel_id)
-        WHERE j.poll = 1
-        GROUP BY j.id
-        HAVING j.last_updated - MAX(m.created_at) < INTERVAL '24 hours'
-            OR (NOW() - j.last_updated) > INTERVAL '24 hours'
-            OR j.last_updated IS NULL
-        ORDER BY j.id ASC""")
-jodels = cur.fetchall()
-cur.close()
-
-failed_jodels = 0
-success = True
-for jodel in jodels:
-    jodel_id = jodel['jodel_id']
-    jodel_fk = jodel['id']
-
-    logger.info('Processing jodel %s (database id %s)' % (jodel_id, jodel_fk))
-
-    skip = jodel['next_post_id']
-    jodel_processed = False
-    disable_jodel = False
-    while True:
-        data = fetch_data(jodel_id, skip)
-
-        if data[0] == 404:
-            logger.error('Jodel does not exist anymore (404)')
-            disable_jodel = True
-            break
-
-        if data[0] != 200 and failed_jodels < 3:
-            failed_jodels += 1
-            logger.error('Unable to fetch data, error code %s, trying again' % (data[0], ))
-            data = fetch_data(jodel_id, skip)
-
-        if data[0] != 200:
-            failed_jodels += 1
-            logger.error('Unable to fetch data, error code %s, terminating after commit' % (data[0], ))
-            success = False
-            break
-
-        process_post(data[1]['details'], jodel_fk)
-        for reply in data[1]['replies']:
-            process_post(reply, jodel_fk)
-       
-        skip = data[1]['next']
-        if skip is not None:
-            cur = conn.cursor()
-            cur.execute("""UPDATE jodel SET next_post_id = %s WHERE id = %s""", (skip, jodel_fk))
-            cur.close()
-
-        if data[1]['remaining'] == 0:
-            jodel_processed = True
-            break
-
-        conn.commit()
-
-        seconds = randint(3, 8)
-        logger.debug('Sleeping %s seconds' % (seconds, ))
-        time.sleep(seconds)
-
-    if jodel_processed:
-        cur = conn.cursor()
-        cur.execute("""UPDATE jodel SET last_updated = NOW() WHERE id = %s""", (jodel_fk, ))
-        cur.close()
-
-    if disable_jodel:
-        cur = conn.cursor()
-        cur.execute("""UPDATE jodel SET poll = 0 WHERE id = %s""", (jodel_fk, ))
-        cur.close()
-
-    conn.commit()
-
-    seconds = randint(3, 8)
-    logger.debug('Sleeping %s seconds' % (seconds, ))
-    time.sleep(seconds)
-
-conn.commit()
-
-logger.debug('Checking for images not yet downloaded')
-
-cur = conn.cursor(cursor_factory = psycopg2.extras.DictCursor)
-cur.execute("""SELECT id, image_url, thumbnail_url, image_id, thumbnail_id FROM message WHERE (image_url IS NOT NULL AND image_id IS NULL) OR (thumbnail_url IS NOT NULL and thumbnail_id IS NULL)""")
-row = cur.fetchone()
-while row:
-    logger.debug('Processing message %s' % (row['id']))
-
-    if row['image_url'] and not row['image_id']:
-        logger.debug('image_id is null')
-
-        image_id = download_image(row['image_url'])
-        if image_id:
-            cur2 = conn.cursor()
-            cur2.execute("""UPDATE message SET image_id = %s WHERE id = %s""", (image_id, row['id']))
-            cur2.close()
-
-    if row['thumbnail_url'] and not row['thumbnail_id']:
-        logger.debug('thubmnail_id is null')
-
-        thumbnail_id = download_image(row['thumbnail_url'])
-        if thumbnail_id:
-            cur2 = conn.cursor()
-            cur2.execute("""UPDATE message SET thumbnail_id = %s WHERE id = %s""", (thumbnail_id, row['id']))
-            cur2.close()
-
-
-    row = cur.fetchone()
-
-    conn.commit()
-
-    seconds = randint(3, 8)
-    logger.debug('Sleeping %s seconds' % (seconds, ))
-    time.sleep(seconds)
+with OutputLogger("root", "DEBUG") as redirector:
+    success = run_import()
 
 conn.commit()
 conn.close()
@@ -295,6 +325,8 @@ if success:
     with open(touch_file, 'a'):
         os.utime(touch_file)
 
-
 logger.debug('Script completed')
+
+if not success:
+    sys.exit(1)
 
