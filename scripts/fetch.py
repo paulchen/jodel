@@ -219,7 +219,7 @@ def run_import():
             if data[0] != 200 and failed_jodels < 3:
                 failed_jodels += 1
                 logger.error('Unable to fetch data, error code %s, trying again' % (data[0], ))
-                data = fetch_data(jodel_id, skip)
+                data = fetch_data(j, jodel_id, skip)
 
             if data[0] != 200:
                 failed_jodels += 1
