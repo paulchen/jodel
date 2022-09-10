@@ -100,6 +100,7 @@ def init():
         logger.debug('Creating new jodel account: lat=%s, lng=%s, city=%s' % (lat, lng, city))
 
         j = jodel_api.JodelAccount(lat=lat, lng=lng, city=city)
+        j.set_user_profile(None, None, 22)
         tokens_changed = True
       
     else:
@@ -224,6 +225,7 @@ def run_import():
             if data[0] != 200:
                 failed_jodels += 1
                 logger.error('Unable to fetch data, error code %s, terminating after commit' % (data[0], ))
+                logger.error(f'Data: {data}')
                 success = False
                 break
 
